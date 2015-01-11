@@ -56,8 +56,8 @@ shoesTemplate = [hamlet|
         shoes
 |]
 
-shoeTemplate :: Int64 -> HtmlUrl Route
-shoeTemplate shoeId = [hamlet|
+shoeTemplate :: Shoe -> HtmlUrl Route
+shoeTemplate shoe = [hamlet|
 <html>
     <head>
         shoe
@@ -72,10 +72,13 @@ getShoes req = do
 
 getShoe :: Network.Wai.Request -> Int64 -> IO Response
 getShoe req shoeId = do
-    shoe <- runSqlite "shoes.db" $ queryShoe shoeId
-    let html = shoeTemplate shoeId renderUrl
+    Just shoe <- runSqlite "shoes.db" $ queryShoe shoeId
+    let html = shoeTemplate shoe renderUrl
     return $ responseBuilder status200 [ ("Content-Type", "text/plain") ] $ renderHtmlBuilder html
-    --return $ responseFile  status200 [ ("Content-Type", "image/jpeg") ] "./images/image.jpg" Nothing
+
+getShoeImage :: Network.Wai.Request -> String -> IO Response
+getShoeImage req imageName =
+    return $ responseFile status200 [ ("Content-Type", "image/jpeg") ] ("./images/" ++ imageName ++ ".jpg") Nothing
 
 aggregateSink :: MonadIO m => Sink ByteString m ByteString
 aggregateSink = CL.fold (\s1 s2 -> Data.ByteString.concat [s1,s2]) ""
@@ -98,6 +101,7 @@ app :: Application
 app req sendResponse = handle (sendResponse . invalidJson) $ do
     response <- case (requestMethod req, pathInfo req) of
       ("GET",  ["shoes", shoeId]) -> getShoe req  (read ( Data.Text.unpack shoeId ))
+      ("GET",  ["shoe_images", imageName]) -> getShoeImage req (Data.Text.unpack imageName)
       ("GET",  ["shoes"]) -> getShoes req
       ("POST", ["shoes"]) -> postShoes req
       _                   -> getDefault  req
