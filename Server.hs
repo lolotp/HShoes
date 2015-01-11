@@ -28,7 +28,7 @@ import           GHC.Generics
 import qualified Data.Conduit.List as CL
 
 -- custom modules
-import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photo, queryShoe)
+import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photoR, shoeDescription, queryShoe)
 
 
 main :: IO ()
@@ -62,7 +62,7 @@ shoeTemplate shoe = [hamlet|
     <head>
         shoe
     <body>
-        shoe
+        <p>#{shoeDescription shoe}
 |]
 
 getShoes :: Network.Wai.Request -> IO Response
@@ -88,7 +88,7 @@ postShoes req = do
     shoe :: Maybe ShoeRaw <- (sourceRequestBody req $$ aggregateSink) >>= (return . decodeStrict)
     case shoe of
       Just rawData  -> do
-        imageFilePath <- saveImageData $ photo rawData
+        imageFilePath <- saveImageData $ photoR rawData
         shoeId <- runSqlite "shoes.db" $ do
             shoeId <- insert $ shoeFromRawData rawData imageFilePath
             return shoeId

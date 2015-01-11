@@ -12,10 +12,11 @@ module DataTypes (Shoe,
                   migrateAll,
                   shoeFromRawData,
                   saveImageData,
-                  photo,
-                  color,
-                  size,
-                  description,
+                  photoR,
+                  shoePhotoPath,
+                  shoeColor,
+                  shoeSize,
+                  shoeDescription,
                   queryShoe) where
 
 import           Control.Monad.IO.Class   (MonadIO)
@@ -46,10 +47,10 @@ Shoe
 |]
 
 data ShoeRaw =
-  ShoeRaw { description :: !Text
-          , color       :: !Text
-          , size        ::  Int
-          , photo       :: !Text
+  ShoeRaw { descriptionR :: !Text
+          , colorR       :: !Text
+          , sizeR        ::  Int
+          , photoR       :: !Text
   } deriving (Show, Generic)
 
 shoeFromRawData :: ShoeRaw -> FilePath -> Shoe
