@@ -12,7 +12,7 @@ module DataTypes (Shoe,
                   migrateAll,
                   shoeFromRawData,
                   saveImageData,
-                  photoR,
+                  photo,
                   shoePhotoPath,
                   shoeColor,
                   shoeSize,
@@ -47,10 +47,10 @@ Shoe
 |]
 
 data ShoeRaw =
-  ShoeRaw { descriptionR :: !Text
-          , colorR       :: !Text
-          , sizeR        ::  Int
-          , photoR       :: !Text
+  ShoeRaw { description :: !Text
+          , color       :: !Text
+          , size        ::  Int
+          , photo       :: !Text
   } deriving (Show, Generic)
 
 shoeFromRawData :: ShoeRaw -> FilePath -> Shoe
@@ -68,7 +68,7 @@ sourceByteString byteString = do
 fileNameFromBytes :: ByteString -> FilePath
 fileNameFromBytes bytes =
     let hashString = B.unpack $ Data.ByteString.Base16.encode $ SHA256.hash bytes
-    in "./images/" ++ hashString ++ ".jpg"
+    in hashString ++ ".jpg"
 
 saveImageData :: Text -> IO String
 saveImageData imageData = do
@@ -76,7 +76,8 @@ saveImageData imageData = do
     case byteData of
         Right bytes -> do
             let filePath = fileNameFromBytes bytes
-            runResourceT $ (sourceByteString bytes) $$ CB.sinkFile filePath
+            print filePath
+            runResourceT $ (sourceByteString bytes) $$ CB.sinkFile ("./images/" ++ filePath)
             return filePath
         _ -> do
             print "Invalid data"

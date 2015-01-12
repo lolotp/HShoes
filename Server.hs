@@ -28,7 +28,7 @@ import           GHC.Generics
 import qualified Data.Conduit.List as CL
 
 -- custom modules
-import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photoR, shoeDescription, queryShoe)
+import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photo, shoeDescription, shoeSize, shoeColor, shoePhotoPath, queryShoe)
 
 
 main :: IO ()
@@ -62,7 +62,11 @@ shoeTemplate shoe = [hamlet|
     <head>
         shoe
     <body>
-        <p>#{shoeDescription shoe}
+        <p>Description:#{shoeDescription shoe}
+        <p>Size:#{shoeSize shoe}
+        <p>Color:#{shoeColor shoe}
+        <p>
+            <img src="/shoe_images/#{shoePhotoPath shoe}">
 |]
 
 getShoes :: Network.Wai.Request -> IO Response
@@ -72,13 +76,16 @@ getShoes req = do
 
 getShoe :: Network.Wai.Request -> Int64 -> IO Response
 getShoe req shoeId = do
-    Just shoe <- runSqlite "shoes.db" $ queryShoe shoeId
-    let html = shoeTemplate shoe renderUrl
-    return $ responseBuilder status200 [ ("Content-Type", "text/plain") ] $ renderHtmlBuilder html
+    maybeShoe <- runSqlite "shoes.db" $ queryShoe shoeId
+    case maybeShoe of
+        Nothing -> return $ responseBuilder status404 [ ("Content-Type", "text/plain") ] $ mconcat $ map copyByteString [ "Not Found" ]
+        Just shoe -> do
+            let html = shoeTemplate shoe renderUrl
+            return $ responseBuilder status200 [ ("Content-Type", "text/html") ] $ renderHtmlBuilder html
 
 getShoeImage :: Network.Wai.Request -> String -> IO Response
-getShoeImage req imageName =
-    return $ responseFile status200 [ ("Content-Type", "image/jpeg") ] ("./images/" ++ imageName ++ ".jpg") Nothing
+getShoeImage req imageFileName =
+    return $ responseFile status200 [ ("Content-Type", "image/jpeg") ] ("./images/" ++ imageFileName) Nothing
 
 aggregateSink :: MonadIO m => Sink ByteString m ByteString
 aggregateSink = CL.fold (\s1 s2 -> Data.ByteString.concat [s1,s2]) ""
@@ -88,7 +95,7 @@ postShoes req = do
     shoe :: Maybe ShoeRaw <- (sourceRequestBody req $$ aggregateSink) >>= (return . decodeStrict)
     case shoe of
       Just rawData  -> do
-        imageFilePath <- saveImageData $ photoR rawData
+        imageFilePath <- saveImageData $ photo rawData
         shoeId <- runSqlite "shoes.db" $ do
             shoeId <- insert $ shoeFromRawData rawData imageFilePath
             return shoeId
