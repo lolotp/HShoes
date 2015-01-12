@@ -28,7 +28,7 @@ import           GHC.Generics
 import qualified Data.Conduit.List as CL
 
 -- custom modules
-import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photo, shoeDescription, shoeSize, shoeColor, shoePhotoPath, queryShoe)
+import           DataTypes                (Shoe, ShoeRaw, shoeFromRawData, saveImageData, photo, shoeDescription, shoeSize, shoeColor, shoePhotoPath, queryShoe, allShoes)
 
 
 main :: IO ()
@@ -47,13 +47,21 @@ renderUrl :: Route -> [(Text, Text)] -> Text
 renderUrl GetShoes _ = "/shoes"
 renderUrl (GetShoe shoeId) _ = Data.Text.append "/shoes/" (Data.Text.pack (show shoeId))
 
-shoesTemplate :: HtmlUrl Route
-shoesTemplate = [hamlet|
+keyToInt64 :: Key Shoe -> Int64
+keyToInt64 key =
+    let PersistInt64 shoeId = head $ keyToValues key in
+    shoeId
+
+shoesTemplate :: [Entity Shoe] -> HtmlUrl Route
+shoesTemplate shoes = [hamlet|
 <html>
     <head>
         shoes
     <body>
-        shoes
+        <ul>
+            $forall shoeEntity <- shoes
+                <li>
+                    <a href="/shoes/#{keyToInt64 (entityKey shoeEntity)}">#{shoeDescription (entityVal shoeEntity)}
 |]
 
 shoeTemplate :: Shoe -> HtmlUrl Route
@@ -71,8 +79,9 @@ shoeTemplate shoe = [hamlet|
 
 getShoes :: Network.Wai.Request -> IO Response
 getShoes req = do
-    let html = shoesTemplate renderUrl
-    return $ responseBuilder status200 [ ("Content-Type", "text/plain") ] $ renderHtmlBuilder html
+    shoes <- runSqlite "shoes.db" allShoes
+    let html = shoesTemplate shoes renderUrl
+    return $ responseBuilder status200 [ ("Content-Type", "text/html") ] $ renderHtmlBuilder html
 
 getShoe :: Network.Wai.Request -> Int64 -> IO Response
 getShoe req shoeId = do
@@ -106,10 +115,12 @@ postShoes req = do
 
 app :: Application
 app req sendResponse = handle (sendResponse . invalidJson) $ do
+    print $ pathInfo req
     response <- case (requestMethod req, pathInfo req) of
+      ("GET",  ["shoes"]) -> getShoes req
+      ("GET",  ["shoes",""]) -> getShoes req
       ("GET",  ["shoes", shoeId]) -> getShoe req  (read ( Data.Text.unpack shoeId ))
       ("GET",  ["shoe_images", imageName]) -> getShoeImage req (Data.Text.unpack imageName)
-      ("GET",  ["shoes"]) -> getShoes req
       ("POST", ["shoes"]) -> postShoes req
       _                   -> getDefault  req
 

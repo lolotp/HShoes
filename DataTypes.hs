@@ -17,7 +17,8 @@ module DataTypes (Shoe,
                   shoeColor,
                   shoeSize,
                   shoeDescription,
-                  queryShoe) where
+                  queryShoe,
+                  allShoes) where
 
 import           Control.Monad.IO.Class   (MonadIO)
 import           Data.Aeson               (FromJSON, ToJSON)
@@ -87,4 +88,7 @@ queryShoe :: MonadIO m => Int64 -> SqlPersistT m (Maybe Shoe)
 queryShoe shoeId = do
     let Right key = keyFromValues [PersistInt64 shoeId]
     get key
+
+allShoes :: MonadIO m => SqlPersistT m ([Entity Shoe])
+allShoes = selectList [] []
 
