@@ -17,6 +17,8 @@ module DataTypes (Shoe,
                   shoeColor,
                   shoeSize,
                   shoeDescription,
+                  keyToInt64,
+                  insertShoe,
                   queryShoe,
                   allShoes) where
 
@@ -76,18 +78,28 @@ saveImageData imageData = do
     let byteData = Data.ByteString.Base64.decode $ encodeUtf8 imageData
     case byteData of
         Right bytes -> do
-            let filePath = fileNameFromBytes bytes
-            print filePath
-            runResourceT $ (sourceByteString bytes) $$ CB.sinkFile ("./images/" ++ filePath)
-            return filePath
+            let fileName = fileNameFromBytes bytes
+            let imageFilePath = "./images/" ++ fileName
+            runResourceT $ (sourceByteString bytes) $$ CB.sinkFile imageFilePath
+            return fileName
         _ -> do
             print "Invalid data"
             return ""
+
+keyToInt64 :: Key Shoe -> Int64
+keyToInt64 key =
+    let PersistInt64 shoeId = head $ keyToValues key in
+    shoeId
 
 queryShoe :: MonadIO m => Int64 -> SqlPersistT m (Maybe Shoe)
 queryShoe shoeId = do
     let Right key = keyFromValues [PersistInt64 shoeId]
     get key
+
+insertShoe :: MonadIO m => ShoeRaw -> String -> SqlPersistT m (Key Shoe)
+insertShoe shoeRaw imageFilePath = do
+    shoeId <- insert $ shoeFromRawData shoeRaw imageFilePath
+    return shoeId
 
 allShoes :: MonadIO m => SqlPersistT m ([Entity Shoe])
 allShoes = selectList [] []
